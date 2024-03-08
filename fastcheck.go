@@ -160,6 +160,7 @@ func (fc *FastCheck) inWhitelist(word string) bool {
 	return ok
 }
 
+// Replace the dirty words in the sentence with a specified character.
 func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string {
 	var original = []rune(str) // Original characters
 	if fc.ignoreCase {
@@ -263,6 +264,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 	}
 }
 
+// Find all dirty words in the sentence
 func (fc *FastCheck) Find(str string, skip func(r rune) bool) []string {
 	if fc.ignoreCase {
 		str = strings.ToUpper(str)
@@ -290,6 +292,7 @@ func (fc *FastCheck) Find(str string, skip func(r rune) bool) []string {
 	return ret
 }
 
+// Check if the sentence contains dirty words
 func (fc *FastCheck) HasWord(str string, skip func(rune) bool) (string, bool) {
 	if fc.ignoreCase {
 		str = strings.ToUpper(str)
