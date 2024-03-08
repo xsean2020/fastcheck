@@ -16,4 +16,59 @@ You can install FastCheck using `go get`:
 
 ```bash
 go get github.com/xsean2020/fastcheck
+```
+
+## Example
+Below is an example demonstrating the usage and performance of FastCheck:
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/xsean2020/fastcheck"
+)
+
+
+func main() {
+	fc := fastcheck.NewFastCheck(false)
+
+	// Add sensitive words to the checker
+	fc.AddWord("五星红旗")
+	fc.AddWord("毛主席")
+
+	// Check if a text contains sensitive words
+	text := "五 星   红旗迎风飘扬，毛@主席的画像屹立在天    安门前。"
+	if word, found := fc.HasWord(text, func(r rune) bool { // output:  Sensitive word found: 五星红旗
+		return unicode.IsSpace(r) || unicode.IsPunct(r)
+	}); found {
+		fmt.Printf("Sensitive word found: %s\n", word)
+	} else {
+		fmt.Println("No sensitive words found.")
+	}
+
+	// Replace sensitive words with asterisks
+	newText := fc.Replace(text, '⭑', func(r rune) bool {
+		return unicode.IsSpace(r) || unicode.IsPunct(r)
+	})
+	fmt.Println("Replaced text:", newText)
+	// "Replaced text: ⭑ ⭑   ⭑⭑迎风飘扬，⭑@⭑⭑的画像屹立在⭑    ⭑⭑前。"
+}
+
+```
+
+
+## Performance Testing
+We have conducted performance testing to evaluate the efficiency of FastCheckPlus. Below are the results:
+```bash
+BenchmarkFastCheckPlus_Replace
+BenchmarkFastCheckPlus_Replace-8                   	 1000000	      1161 ns/op
+BenchmarkFastCheckPlus_HasWord
+BenchmarkFastCheckPlus_HasWord-8                   	 3068569	       390.4 ns/op
+BenchmarkFastCheckPlus_Replace_CaseInsensitive
+BenchmarkFastCheckPlus_Replace_CaseInsensitive-8   	  885067	      1322 ns/op
+BenchmarkFastCheckPlus_HasWord_CaseInsensitive
+BenchmarkFastCheckPlus_HasWord_CaseInsensitive-8   	 2188736	       544.8 ns/op
+```
+
 
