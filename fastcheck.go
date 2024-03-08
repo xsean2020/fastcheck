@@ -9,7 +9,7 @@ import (
 
 const (
 	MaxStrLen  = 15
-	MaxTextLen = math.MaxUint16
+	MaxTextLen = math.MaxUint8 // 脏词长度不能超过255
 )
 
 func min(a, b uint16) uint16 {
@@ -23,8 +23,8 @@ type Letter struct {
 	Length uint16 // Length of string starting with this character
 	Pos    uint16 // Position of this character in a string
 	Max    uint16 // Maximum length of string starting with this character
-	Min    uint16 // Minimum length of string starting with this character
-	IsEnd  bool   // Indicates if this is the end character
+	Min    uint8  // Minimum length of string starting with this character
+	IsEnd  uint8  // Indicates if this is the end character
 }
 
 func (l *Letter) String() string {
@@ -38,7 +38,7 @@ func (l *Letter) IsFirst() bool {
 	return l.Pos&1 == 1
 }
 
-func (l *Letter) SetMin(min uint16) {
+func (l *Letter) SetMin(min uint8) {
 	if l.Min < min {
 		return
 	}
@@ -85,7 +85,8 @@ func (l *Letter) CheckLen(len uint16) bool {
 type FastCheck struct {
 	hashSet    map[string]struct{}
 	whitelist  map[string]struct{}
-	letters    map[rune]*Letter
+	letters    []Letter
+	indices    map[rune]int
 	ignoreCase bool
 	sync.RWMutex
 }
@@ -94,7 +95,7 @@ func NewFastCheck(ignoreCase bool) *FastCheck {
 	return &FastCheck{
 		hashSet:    make(map[string]struct{}),
 		ignoreCase: ignoreCase,
-		letters:    make(map[rune]*Letter),
+		indices:    make(map[rune]int),
 		whitelist:  make(map[string]struct{}),
 	}
 }
@@ -111,14 +112,21 @@ func (fc *FastCheck) AddWhitelist(words ...string) {
 }
 
 func (fc *FastCheck) mustLetter(r rune) *Letter {
-	letter, ok := fc.letters[r]
-	if ok {
-		return letter
+	idx, ok := fc.indices[r]
+	if !ok {
+		idx = len(fc.letters)
+		fc.indices[r] = idx
+		fc.letters = append(fc.letters, Letter{Min: math.MaxUint8})
 	}
-	letter = new(Letter)
-	letter.Min = math.MaxUint16
-	fc.letters[r] = letter
-	return letter
+	return &fc.letters[idx]
+}
+
+func (fc *FastCheck) letter(r rune) *Letter {
+	idx, ok := fc.indices[r]
+	if ok {
+		return &fc.letters[idx]
+	}
+	return nil
 }
 
 func (fc *FastCheck) AddWord(text string) bool {
@@ -143,10 +151,10 @@ func (fc *FastCheck) AddWord(text string) bool {
 
 	runes = []rune(text)
 	size := uint16(len(runes))
-	fc.mustLetter(runes[size-1]).IsEnd = true
+	fc.mustLetter(runes[size-1]).IsEnd = 1
 	start := fc.mustLetter(runes[0])
 	start.SetMax(size)
-	start.SetMin(size)
+	start.SetMin(uint8(size))
 	start.SetLen(size)
 	for i, r := range runes {
 		fc.mustLetter(r).SetPos(i)
@@ -158,6 +166,35 @@ func (fc *FastCheck) AddWord(text string) bool {
 func (fc *FastCheck) inWhitelist(word string) bool {
 	_, ok := fc.whitelist[word]
 	return ok
+}
+
+// Find all dirty words in the sentence
+func (fc *FastCheck) Find(str string, skip func(r rune) bool) []string {
+	var original = []rune(str)
+	if fc.ignoreCase {
+		str = strings.ToUpper(str)
+	}
+	var all [][]uint16
+	var runes = []rune(str)
+	fc.find(runes, skip, func(idxs []uint16) bool {
+		var cp = make([]uint16, len(idxs))
+		copy(cp, idxs)
+		all = append(all, cp)
+		return false
+	})
+
+	if len(all) == 0 {
+		return nil
+	}
+	var ret = make([]string, len(all))
+	for i, words := range all {
+		var b strings.Builder
+		for i := range words {
+			b.WriteRune(original[words[i]])
+		}
+		ret[i] = b.String()
+	}
+	return ret
 }
 
 // Replace the dirty words in the sentence with a specified character.
@@ -191,7 +228,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 				index++
 				continue
 			}
-			first = fc.letters[runes[index]]
+			first = fc.letter(runes[index])
 			if first.IsFirst() {
 				break
 			}
@@ -218,7 +255,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 		var stopCounter bool
 		var ignoreCount uint16 // Number of ignored characters
 		var counter = uint16(1)
-
+		var minLen = uint16(first.Min)
 		for j := uint16(1); j <= min(length-index-1, first.Max+ignoreCount); j++ {
 			var current = runes[index+j]
 			if skip != nil && skip(current) {
@@ -229,7 +266,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 				continue
 			}
 
-			letter := fc.letters[current]
+			letter := fc.letter(current)
 			if letter == nil {
 				break
 			}
@@ -242,9 +279,8 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 				break
 			}
 			wordsIndex = append(wordsIndex, j+index)
-			if j+1-ignoreCount >= first.Min {
-				if first.CheckLen(j+1-ignoreCount) && letter.IsEnd {
-					// 不允许复用
+			if j+1-ignoreCount >= minLen {
+				if first.CheckLen(j+1-ignoreCount) && letter.IsEnd == 1 {
 					var b strings.Builder
 					for _, i := range wordsIndex {
 						b.WriteRune(runes[i])
@@ -262,34 +298,6 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 		}
 		index += counter
 	}
-}
-
-// Find all dirty words in the sentence
-func (fc *FastCheck) Find(str string, skip func(r rune) bool) []string {
-	if fc.ignoreCase {
-		str = strings.ToUpper(str)
-	}
-	var all [][]uint16
-	var runes = []rune(str)
-	fc.find(runes, skip, func(idxs []uint16) bool {
-		var cp = make([]uint16, len(idxs))
-		copy(cp, idxs)
-		all = append(all, cp)
-		return false
-	})
-
-	if len(all) == 0 {
-		return nil
-	}
-	var ret = make([]string, len(all))
-	for i, words := range all {
-		var b strings.Builder
-		for i := range words {
-			b.WriteRune(runes[words[i]])
-		}
-		ret[i] = b.String()
-	}
-	return ret
 }
 
 // Check if the sentence contains dirty words

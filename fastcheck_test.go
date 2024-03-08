@@ -23,6 +23,8 @@ func init() {
 		var text = scanner.Text()
 		fc.AddWord(text)
 	}
+
+	fc.AddWord("2 girls 1 cup")
 }
 
 func BenchmarkFastCheckPlus_Replace(b *testing.B) {
@@ -111,11 +113,17 @@ var skipFn = func(r rune) bool {
 	return unicode.IsSpace(r) || unicode.IsPunct(r)
 }
 
+func TestSkip(t *testing.T) {
+	var str = "a$$"
+	for _, r := range []rune(str) {
+		t.Log(skipFn(r))
+	}
+}
+
 func TestRelace(t *testing.T) {
-	var text = " 你好啊, fuck you ! 这里是严格的脏词匹配 ～你就是个,垃.圾 哈 哈 哈 哈 @  , 这是一个测试字符串，里面含有中文符号。|||"
-	hit, ok := fc.HasWord(text, skipFn)
-	t.Logf("result: %v %v", hit, ok)
+	var text = `2 girls 1 cup,2g1c,4r5e,5h1t,5hit,a_s_s,a$$,a$$hole,rien à foutre,ssblaster,assclown,asscock,asscracker,asses,assface,assfaces,assfuck,assfucker,assfukka,assgoblin,assh0le,asshat,asshead,assho1e,ايريببخشطيزالامك`
 	ret := fc.Replace(text, '⭑', skipFn)
-	t.Logf("输出：%v \t 输出：%v", text, ret)
+	t.Logf("输入：%v \n 输出：%v  \n ", text, ret)
 	t.Logf("Find : %v", fc.Find(text, skipFn))
+
 }
