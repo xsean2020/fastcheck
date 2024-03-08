@@ -61,14 +61,17 @@ func main() {
 ## Performance Testing
 We have conducted performance testing to evaluate the efficiency of FastCheckPlus. Below are the results:
 ```bash
+goos: darwin
+goarch: arm64
+pkg: github.com/xsean2020/fastcheck
 BenchmarkFastCheckPlus_Replace
-BenchmarkFastCheckPlus_Replace-8                   	 1000000	      1161 ns/op
+BenchmarkFastCheckPlus_Replace-8                   	  949407	      1271 ns/op
 BenchmarkFastCheckPlus_HasWord
-BenchmarkFastCheckPlus_HasWord-8                   	 3068569	       390.4 ns/op
+BenchmarkFastCheckPlus_HasWord-8                   	 2158707	       478.0 ns/op
 BenchmarkFastCheckPlus_Replace_CaseInsensitive
-BenchmarkFastCheckPlus_Replace_CaseInsensitive-8   	  885067	      1322 ns/op
+BenchmarkFastCheckPlus_Replace_CaseInsensitive-8   	  857062	      1425 ns/op
 BenchmarkFastCheckPlus_HasWord_CaseInsensitive
-BenchmarkFastCheckPlus_HasWord_CaseInsensitive-8   	 2188736	       544.8 ns/op
+BenchmarkFastCheckPlus_HasWord_CaseInsensitive-8   	 1816110	       662.6 ns/op
 ```
 
 

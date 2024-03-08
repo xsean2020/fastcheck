@@ -161,20 +161,28 @@ func (fc *FastCheck) inWhitelist(word string) bool {
 }
 
 func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string {
-
 	var original = []rune(str) // Original characters
 	if fc.ignoreCase {
 		str = strings.ToUpper(str)
 	}
-	var index uint16
 	var runes = []rune(str)
+	fc.find(runes, skip, func(idxs []uint16) bool {
+		for i := range idxs {
+			original[idxs[i]] = char
+		}
+		return false
+	})
+	return string(original)
+}
+
+func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs []uint16) bool) {
+	var index uint16
 	var length = uint16(len(runes))
 	var lastIndex = length - 1
-	var replacedIndex uint16 // Index of the last replaced character
+	var wordsIndex = make([]uint16, 0, length)
 
 	fc.RLock()
 	defer fc.RUnlock()
-
 	for index < length {
 		var first *Letter
 		for index < lastIndex {
@@ -182,7 +190,6 @@ func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string
 				index++
 				continue
 			}
-
 			first = fc.letters[runes[index]]
 			if first.IsFirst() {
 				break
@@ -195,9 +202,13 @@ func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string
 		}
 
 		var begin = runes[index]
+		wordsIndex = wordsIndex[:0]
+		wordsIndex = append(wordsIndex, index)
 		if first.Min == 1 {
 			if !fc.inWhitelist(string(begin)) {
-				original[index] = char
+				if handle(wordsIndex) {
+					return
+				}
 			}
 			index++
 			continue
@@ -206,9 +217,6 @@ func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string
 		var stopCounter bool
 		var ignoreCount uint16 // Number of ignored characters
 		var counter = uint16(1)
-		if replacedIndex < index {
-			replacedIndex = index
-		}
 
 		for j := uint16(1); j <= min(length-index-1, first.Max+ignoreCount); j++ {
 			var current = runes[index+j]
@@ -232,30 +240,19 @@ func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string
 			if !letter.CheckPos(j - ignoreCount) {
 				break
 			}
-
+			wordsIndex = append(wordsIndex, j+index)
 			if j+1-ignoreCount >= first.Min {
 				if first.CheckLen(j+1-ignoreCount) && letter.IsEnd {
-					var target string
-					if ignoreCount > 0 {
-						var tmps = make([]rune, 0, j+1)
-						for i := index; i < index+j+1; i++ {
-							if skip(runes[i]) {
-								continue
-							}
-							tmps = append(tmps, runes[i])
-						}
-						target = string(tmps)
-					} else {
-						target = string(runes[index : index+j+1])
+					// 不允许复用
+					var b strings.Builder
+					for _, i := range wordsIndex {
+						b.WriteRune(runes[i])
 					}
-
+					target := b.String()
 					if _, ok := fc.hashSet[target]; ok {
 						if !fc.inWhitelist(target) {
-							for ; replacedIndex < index+j+1; replacedIndex++ {
-								if ignoreCount > 0 && skip(runes[replacedIndex]) {
-									continue
-								}
-								original[replacedIndex] = char
+							if handle(wordsIndex) {
+								return
 							}
 						}
 					}
@@ -264,101 +261,52 @@ func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string
 		}
 		index += counter
 	}
-	return string(original)
+}
+
+func (fc *FastCheck) Find(str string, skip func(r rune) bool) []string {
+	if fc.ignoreCase {
+		str = strings.ToUpper(str)
+	}
+	var all [][]uint16
+	var runes = []rune(str)
+	fc.find(runes, skip, func(idxs []uint16) bool {
+		var cp = make([]uint16, len(idxs))
+		copy(cp, idxs)
+		all = append(all, cp)
+		return false
+	})
+
+	if len(all) == 0 {
+		return nil
+	}
+	var ret = make([]string, len(all))
+	for i, words := range all {
+		var b strings.Builder
+		for i := range words {
+			b.WriteRune(runes[words[i]])
+		}
+		ret[i] = b.String()
+	}
+	return ret
 }
 
 func (fc *FastCheck) HasWord(str string, skip func(rune) bool) (string, bool) {
 	if fc.ignoreCase {
 		str = strings.ToUpper(str)
 	}
-	var index uint16
 	var runes = []rune(str)
-	var length = uint16(len(runes))
-	var lastIndex = length - 1
+	var words []uint16
+	fc.find(runes, skip, func(idxs []uint16) bool {
+		words = idxs
+		return true
+	})
 
-	fc.RLock()
-	defer fc.RUnlock()
-
-	for index < length {
-		var first *Letter
-		for index < lastIndex {
-			if skip != nil && skip(runes[index]) {
-				index++
-				continue
-			}
-			first = fc.letters[runes[index]]
-			if first.IsFirst() {
-				break
-			}
-			index++
-		}
-
-		if first == nil {
-			break
-		}
-
-		var begin = runes[index]
-		if first.Min == 1 {
-			word := string(begin)
-			if !fc.inWhitelist(word) {
-				return word, true
-			}
-			index++
-			continue
-		}
-
-		var stopCounter bool
-		var ignoreCount uint16 // Number of ignored characters
-		var counter = uint16(1)
-
-		for j := uint16(1); j <= min(length-index-1, first.Max+ignoreCount); j++ {
-			var current = runes[index+j]
-			if skip != nil && skip(current) {
-				if !stopCounter {
-					counter++
-				}
-				ignoreCount++
-				continue
-			}
-
-			letter := fc.letters[current]
-			if letter == nil {
-				break
-			}
-
-			if stopCounter = stopCounter || letter.IsFirst(); !stopCounter {
-				counter++
-			}
-
-			if !letter.CheckPos(j - ignoreCount) {
-				break
-			}
-
-			if j+1-ignoreCount >= first.Min {
-				if first.CheckLen(j+1-ignoreCount) && letter.IsEnd {
-					var target string
-					if ignoreCount > 0 {
-						var tmps = make([]rune, 0, j+1)
-						for i := index; i < index+j+1; i++ {
-							if skip(runes[i]) {
-								continue
-							}
-							tmps = append(tmps, runes[i])
-						}
-						target = string(tmps)
-					} else {
-						target = string(runes[index : index+j+1])
-					}
-
-					if _, ok := fc.hashSet[target]; ok {
-						if !fc.inWhitelist(target) {
-							return target, true
-						}
-					}
-				}
-			}
-		}
-		index += counter
+	if len(words) == 0 {
+		return "", false
 	}
-	return "", false
+	var b strings.Builder
+	for i := range words {
+		b.WriteRune(runes[words[i]])
+	}
+	return b.String(), true
 }

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log"
 	"testing"
+	"time"
 	"unicode"
 
 	_ "embed"
@@ -96,14 +97,25 @@ func TestValid(t *testing.T) {
 	}
 }
 
+func Test100w(t *testing.T) {
+	var words = []string{"你好啊, fuck you ! 这里是严格的脏词匹配", "～你就是个,垃.圾 哈 哈 哈 哈 @  , 这是一个测试字符串，里面含有中文符号。|||"}
+	now := time.Now()
+	for i := 0; i < 1000000; i++ {
+		fc.Replace(words[0], '⛤', skipFn)
+	}
+
+	t.Log(time.Since(now))
+}
+
 var skipFn = func(r rune) bool {
 	return unicode.IsSpace(r) || unicode.IsPunct(r)
 }
 
 func TestRelace(t *testing.T) {
-	var text = "五 星   红旗迎风飘扬，毛@主席的画像屹立在天    安门前。"
+	var text = " 你好啊, fuck you ! 这里是严格的脏词匹配 ～你就是个,垃.圾 哈 哈 哈 哈 @  , 这是一个测试字符串，里面含有中文符号。|||"
 	hit, ok := fc.HasWord(text, skipFn)
 	t.Logf("result: %v %v", hit, ok)
 	ret := fc.Replace(text, '⭑', skipFn)
 	t.Logf("输出：%v \t 输出：%v", text, ret)
+	t.Logf("Find : %v", fc.Find(text, skipFn))
 }
