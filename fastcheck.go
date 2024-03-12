@@ -270,8 +270,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 			if letter == nil {
 				break
 			}
-
-			if stopCounter = stopCounter || letter.IsFirst(); !stopCounter {
+			if stopCounter = stopCounter || (letter.IsFirst() && (letter.Min == 1 || checkNextPos(fc, skip, runes, j+1, length))); !stopCounter {
 				counter++
 			}
 
@@ -298,6 +297,23 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 		}
 		index += counter
 	}
+}
+
+// Check next pos wehter in dity
+func checkNextPos(fc *FastCheck, skip func(r rune) bool, runes []rune, nextIdx, sz uint16) bool {
+	for i := nextIdx; i < sz; i++ {
+		r := runes[i]
+		if skip != nil && skip(r) {
+			continue
+		}
+
+		letter := fc.letter(r)
+		if letter == nil {
+			return false
+		}
+		return letter.CheckPos(2)
+	}
+	return false
 }
 
 // Check if the sentence contains dirty words

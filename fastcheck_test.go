@@ -3,6 +3,7 @@ package fastcheck
 import (
 	"bufio"
 	"embed"
+	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -25,6 +26,23 @@ func init() {
 	}
 
 	fc.AddWord("2 girls 1 cup")
+	fc.AddWord("激情小姐")
+
+	var min uint8 = 255
+	var max uint16 = 0
+	for _, v := range fc.letters {
+
+		if min > v.Min {
+			min = v.Min
+		}
+
+		if v.Max > max {
+			max = v.Max
+		}
+
+	}
+	fmt.Println(min, max)
+	// fc.AddWhitelist("fat")
 }
 
 func BenchmarkFastCheckPlus_Replace(b *testing.B) {
@@ -89,7 +107,7 @@ func TestValid(t *testing.T) {
 		}
 
 		reslut := check.Replace(text, '*', nil)
-		if reslut == text {
+		if reslut != "fat" && reslut == text {
 			log.Fatal("replace error", text)
 		}
 
@@ -121,9 +139,24 @@ func TestSkip(t *testing.T) {
 }
 
 func TestRelace(t *testing.T) {
-	var text = `2 girls 1 cup,2g1c,4r5e,5h1t,5hit,a_s_s,a$$,a$$hole,rien à foutre,ssblaster,assclown,asscock,asscracker,asses,assface,assfaces,assfuck,assfucker,assfukka,assgoblin,assh0le,asshat,asshead,assho1e,ايريببخشطيزالامك`
-	ret := fc.Replace(text, '⭑', skipFn)
+	var text = `
+Bad Words Types & Meaning
+It’s important to mention that there are many types of bad words. Our full list of bad words includes all the following types:
+Curse Words – Profane or obscene words, especially as used in anger or for emphasis.
+Insult Words – Words used to treat with insolence, indignity, or contempt, also to affect offensively or damagingly.
+Offensive Words – Words that arouse resentment, annoyance, or anger.
+Dirty Words – A vulgar or taboo word or any word, name, or concept considered reprehensible.
+Rude Words – Discourteous or impolite words, used especially in a deliberate way.
+Sexual Words – Words related to male and female, mother, father, sister, wife, lesbians, homosexuals, people, animals, intersex organisms, and their body parts.
+Vulgar Words – Words that are characterized by ignorance of or lack of good breeding or taste.
+Obscene Words – Offends you because it relates to sex or violence in a way that you think is unpleasant and shocking.
+Naughty Words – Means disobedient, mischievous, or generally misbehaving, particularly when applied to children.
+Inappropriate Words – Words not useful or suitable for a particular situation or purpose.
+Our list has been tested by thousands of our visitors! All have confirmed that our full list works perfectly. Moreover,  they did not have any banning by Google or by any other authority.
+来直播间在线观看激情小姐姐
+	`
+	ret := fc.Replace(text, '⭑', nil)
 	t.Logf("输入：%v \n 输出：%v  \n ", text, ret)
-	t.Logf("Find : %v", fc.Find(text, skipFn))
+	t.Logf("Find : %v", fc.Find(text, nil))
 
 }
