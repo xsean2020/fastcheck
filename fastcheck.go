@@ -257,7 +257,6 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 		for j := uint16(1); j <= min(length-index-1, first.Max+ignoreCount); j++ {
 			var current = runes[index+j]
 			if skip != nil && skip(current) {
-				counter++
 				ignoreCount++
 				continue
 			}
@@ -284,6 +283,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 					}
 					target := b.String()
 					if _, ok := fc.hashSet[target]; ok {
+						//fmt.Println("target", target, "source", string(runes[index:index+j+1]))
 						if !fc.inWhitelist(target) {
 							if handle(wordsIndex) {
 								return

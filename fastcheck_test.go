@@ -42,7 +42,6 @@ func init() {
 
 	}
 	fmt.Println(min, max)
-	// fc.AddWhitelist("fat")
 }
 
 func BenchmarkFastCheckPlus_Replace(b *testing.B) {
