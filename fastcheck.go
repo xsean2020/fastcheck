@@ -251,16 +251,13 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 			continue
 		}
 
-		var stopCounter bool
 		var ignoreCount uint16 // Number of ignored characters
 		var counter = uint16(1)
 		var minLen = uint16(first.Min)
 		for j := uint16(1); j <= min(length-index-1, first.Max+ignoreCount); j++ {
 			var current = runes[index+j]
 			if skip != nil && skip(current) {
-				if !stopCounter {
-					counter++
-				}
+				counter++
 				ignoreCount++
 				continue
 			}
@@ -270,7 +267,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 				break
 			}
 
-			if stopCounter = stopCounter || letter.IsFirst(); !stopCounter {
+			if !letter.IsFirst() {
 				counter++
 			}
 
