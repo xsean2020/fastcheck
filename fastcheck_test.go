@@ -26,7 +26,7 @@ func init() {
 	}
 
 	fc.AddWord("2 girls 1 cup")
-	fc.AddWord("激情小姐")
+	//	fc.AddWord("激情小姐")
 
 	var min uint8 = 255
 	var max uint16 = 0
@@ -154,6 +154,7 @@ Naughty Words – Means disobedient, mischievous, or generally misbehaving, part
 Inappropriate Words – Words not useful or suitable for a particular situation or purpose.
 Our list has been tested by thousands of our visitors! All have confirmed that our full list works perfectly. Moreover,  they did not have any banning by Google or by any other authority.
 来直播间在线观看激情小姐姐
+伟大主席毛泽东
 	`
 	ret := fc.Replace(text, '⭑', nil)
 	t.Logf("输入：%v \n 输出：%v  \n ", text, ret)

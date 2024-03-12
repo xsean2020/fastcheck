@@ -19,9 +19,11 @@ func min(a, b uint16) uint16 {
 	return a
 }
 
+// 利用概率 碰撞的概率不大
+// 脏词库越大，越不准确,碰撞的概率会越大
 type Letter struct {
-	Length uint16 // Length of string starting with this character
 	Pos    uint16 // Position of this character in a string
+	Length uint16 // Length of string starting with this character
 	Max    uint16 // Maximum length of string starting with this character
 	Min    uint8  // Minimum length of string starting with this character
 	IsEnd  uint8  // Indicates if this is the end character
@@ -67,16 +69,14 @@ func (l *Letter) SetPos(pos int) {
 }
 
 func (l *Letter) SetLen(len uint16) {
-	len -= 1
-	if len > MaxStrLen {
+	if len -= 1; len > MaxStrLen {
 		len = MaxStrLen
 	}
 	l.Length |= uint16(1 << len)
 }
 
 func (l *Letter) CheckLen(len uint16) bool {
-	len -= 1
-	if len > MaxStrLen {
+	if len -= 1; len > MaxStrLen {
 		len = MaxStrLen
 	}
 	return (l.Length & uint16(1<<len)) > 0
@@ -218,7 +218,6 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 	var length = uint16(len(runes))
 	var lastIndex = length - 1
 	var wordsIndex = make([]uint16, 0, length)
-
 	fc.RLock()
 	defer fc.RUnlock()
 	for index < length {
@@ -270,13 +269,15 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 			if letter == nil {
 				break
 			}
-			if stopCounter = stopCounter || (letter.IsFirst() && (letter.Min == 1 || checkNextPos(fc, skip, runes, j+1, length))); !stopCounter {
+
+			if stopCounter = stopCounter || letter.IsFirst(); !stopCounter {
 				counter++
 			}
 
 			if !letter.CheckPos(j - ignoreCount) {
 				break
 			}
+
 			wordsIndex = append(wordsIndex, j+index)
 			if j+1-ignoreCount >= minLen {
 				if first.CheckLen(j+1-ignoreCount) && letter.IsEnd == 1 {
@@ -291,29 +292,13 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 								return
 							}
 						}
+						counter = j + 1 // find skip this world
 					}
 				}
 			}
 		}
 		index += counter
 	}
-}
-
-// Check next pos wehter in dity
-func checkNextPos(fc *FastCheck, skip func(r rune) bool, runes []rune, nextIdx, sz uint16) bool {
-	for i := nextIdx; i < sz; i++ {
-		r := runes[i]
-		if skip != nil && skip(r) {
-			continue
-		}
-
-		letter := fc.letter(r)
-		if letter == nil {
-			return false
-		}
-		return letter.CheckPos(2)
-	}
-	return false
 }
 
 // Check if the sentence contains dirty words
