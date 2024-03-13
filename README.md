@@ -36,6 +36,7 @@ func main() {
 	// Add sensitive words to the checker
 	fc.AddWord("五星红旗")
 	fc.AddWord("毛主席")
+	fc.AddWord("天安门")
 
 	// Check if a text contains sensitive words
 	text := "五 星   红旗迎风飘扬，毛@主席的画像屹立在天    安门前。"
