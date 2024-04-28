@@ -245,8 +245,6 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 					return
 				}
 			}
-			index++
-			continue
 		}
 
 		var ignoreCount int // Number of ignored characters
@@ -289,7 +287,6 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 								return
 							}
 						}
-						counter = j + 1 // find skip this world
 					}
 				}
 			}
