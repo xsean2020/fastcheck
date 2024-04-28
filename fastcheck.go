@@ -274,6 +274,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 				break
 			}
 
+			// 匹配最长字串
 			wordsIndex = append(wordsIndex, j+index)
 			if j+1-ignoreCount >= minLen {
 				if first.CheckLen(int(j+1-ignoreCount)) && letter.IsEnd == 1 {
@@ -283,6 +284,7 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 					}
 					target := b.String()
 					if _, ok := fc.hashSet[target]; ok {
+						// 来一次递归查找
 						if !fc.inWhitelist(target) {
 							if handle(wordsIndex) {
 								return
