@@ -8,22 +8,20 @@ import (
 )
 
 const (
-	MaxStrLen  = 15
+	MaxStrLen  = 7
 	MaxTextLen = math.MaxUint8 // 脏词长度不能超过255
 )
 
-func min(a, b uint16) uint16 {
+func min(a, b int) int {
 	if a > b {
 		return b
 	}
 	return a
 }
 
-// 利用概率 碰撞的概率不大
-// 脏词库越大，越不准确,碰撞的概率会越大
 type Letter struct {
-	Pos    uint16 // Position of this character in a string
-	Length uint16 // Length of string starting with this character
+	Pos    uint8  // Position of this character in a string
+	Length uint8  // Length of string starting with this character
 	Max    uint16 // Maximum length of string starting with this character
 	Min    uint8  // Minimum length of string starting with this character
 	IsEnd  uint8  // Indicates if this is the end character
@@ -54,32 +52,32 @@ func (l *Letter) SetMax(max uint16) {
 	l.Max = max
 }
 
-func (l *Letter) CheckPos(pos uint16) bool {
+func (l *Letter) CheckPos(pos int) bool {
 	if pos > MaxStrLen {
 		pos = MaxStrLen
 	}
-	return (l.Pos & uint16(1<<pos)) > 0
+	return (l.Pos & uint8(1<<pos)) > 0
 }
 
 func (l *Letter) SetPos(pos int) {
 	if pos > MaxStrLen {
 		pos = MaxStrLen
 	}
-	l.Pos |= uint16(1 << pos)
+	l.Pos |= uint8(1 << pos)
 }
 
-func (l *Letter) SetLen(len uint16) {
+func (l *Letter) SetLen(len int) {
 	if len -= 1; len > MaxStrLen {
 		len = MaxStrLen
 	}
-	l.Length |= uint16(1 << len)
+	l.Length |= uint8(1 << len)
 }
 
-func (l *Letter) CheckLen(len uint16) bool {
+func (l *Letter) CheckLen(len int) bool {
 	if len -= 1; len > MaxStrLen {
 		len = MaxStrLen
 	}
-	return (l.Length & uint16(1<<len)) > 0
+	return (l.Length & uint8(1<<len)) > 0
 }
 
 type FastCheck struct {
@@ -155,7 +153,7 @@ func (fc *FastCheck) AddWord(text string) bool {
 	start := fc.mustLetter(runes[0])
 	start.SetMax(size)
 	start.SetMin(uint8(size))
-	start.SetLen(size)
+	start.SetLen(int(size))
 	for i, r := range runes {
 		fc.mustLetter(r).SetPos(i)
 	}
@@ -174,10 +172,10 @@ func (fc *FastCheck) Find(str string, skip func(r rune) bool) []string {
 	if fc.ignoreCase {
 		str = strings.ToUpper(str)
 	}
-	var all [][]uint16
+	var all [][]int
 	var runes = []rune(str)
-	fc.find(runes, skip, func(idxs []uint16) bool {
-		var cp = make([]uint16, len(idxs))
+	fc.find(runes, skip, func(idxs []int) bool {
+		var cp = make([]int, len(idxs))
 		copy(cp, idxs)
 		all = append(all, cp)
 		return false
@@ -204,7 +202,7 @@ func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string
 		str = strings.ToUpper(str)
 	}
 	var runes = []rune(str)
-	fc.find(runes, skip, func(idxs []uint16) bool {
+	fc.find(runes, skip, func(idxs []int) bool {
 		for i := range idxs {
 			original[idxs[i]] = char
 		}
@@ -213,11 +211,11 @@ func (fc *FastCheck) Replace(str string, char rune, skip func(rune) bool) string
 	return string(original)
 }
 
-func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs []uint16) bool) {
-	var index uint16
-	var length = uint16(len(runes))
+func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs []int) bool) {
+	var index int
+	var length = len(runes)
 	var lastIndex = length - 1
-	var wordsIndex = make([]uint16, 0, length)
+	var wordsIndex = make([]int, 0, length)
 	fc.RLock()
 	defer fc.RUnlock()
 	for index < length {
@@ -251,10 +249,12 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 			continue
 		}
 
-		var ignoreCount uint16 // Number of ignored characters
-		var counter = uint16(1)
-		var minLen = uint16(first.Min)
-		for j := uint16(1); j <= min(length-index-1, first.Max+ignoreCount); j++ {
+		var ignoreCount int // Number of ignored characters
+		var counter = int(1)
+		var minLen = int(first.Min)
+		var firstMax = int(first.Max)
+
+		for j := 1; j <= min(length-index-1, firstMax+ignoreCount); j++ {
 			var current = runes[index+j]
 
 			if skip != nil && skip(current) {
@@ -271,13 +271,13 @@ func (fc *FastCheck) find(runes []rune, skip func(rune) bool, handle func(idxs [
 				counter++
 			}
 
-			if !letter.CheckPos(j - ignoreCount) {
+			if !letter.CheckPos(int(j - ignoreCount)) {
 				break
 			}
 
 			wordsIndex = append(wordsIndex, j+index)
 			if j+1-ignoreCount >= minLen {
-				if first.CheckLen(j+1-ignoreCount) && letter.IsEnd == 1 {
+				if first.CheckLen(int(j+1-ignoreCount)) && letter.IsEnd == 1 {
 					var b strings.Builder
 					for _, i := range wordsIndex {
 						b.WriteRune(runes[i])
@@ -304,8 +304,8 @@ func (fc *FastCheck) HasWord(str string, skip func(rune) bool) (string, bool) {
 		str = strings.ToUpper(str)
 	}
 	var runes = []rune(str)
-	var words []uint16
-	fc.find(runes, skip, func(idxs []uint16) bool {
+	var words []int
+	fc.find(runes, skip, func(idxs []int) bool {
 		words = idxs
 		return true
 	})
